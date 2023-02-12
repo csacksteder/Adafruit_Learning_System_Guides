@@ -39,12 +39,30 @@ byte read(void)
   oneWire.write(DS2413_ACCESS_READ);
 
   results = oneWire.read();                 /* Get the register results   */
-  ok = (!results & 0x0F) == (results >> 4); /* Compare nibbles            */
-  results &= 0x0F;                          /* Clear inverted values      */
+  
+  // original: not (!) does not flip the bits in this statement, bitwise XOR needed.
+  //ok = (!results & 0x0F) == (results >> 4); /* Compare nibbles            */
+ 
+  // expected results:
+  // 1111 1111 error
+  // bits in left nibble should be inverse of those in the right (why?)
+  // 0101 1010 IOA and IOB closed
+  // 0100 1011 IOA closed IOB open
+  // 0001 1110 IOA open IOB closed  
+  // 0000 1111 IOA open IOB open
+
+  // Shift the left nibble, XOR the bits, and result should match the right nibble.  
+  // Not ok if missmatch or error (1111 1111)
+
+   ok = (((results >> 4) ^ 0x0F) == (results & 0x0F));
+
+   if (ok) {
+     results &= 0x0F;      // Clear left nibble inverted bits, returning 1010, 1011, 1110 or 1111 
+   } else {
+     results = 0;          // 0 = error
+   }
 
   oneWire.reset();
-  
-  // return ok ? results : -1;
   return results;
 }
 
